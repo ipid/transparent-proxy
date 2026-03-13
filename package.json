@@ -1,0 +1,25 @@
+{
+  "name": "playground",
+  "description": "一个基于 TypeScript + tsx 的脚本集合，用于 <请填入用途>",
+  "private": true,
+  "version": "0.0.1",
+  "type": "module",
+  "packageManager": "pnpm",
+  "engines": {
+    "npm": "【当前项目不支持直接使用npm，请使用pnpm】",
+    "yarn": "【当前项目不支持使用yarn，请使用pnpm】",
+    "pnpm": "*"
+  },
+  "devDependencies": {
+    "@eslint/js": "10.0.1",
+    "@types/node": "25.5.0",
+    "eslint": "10.0.3",
+    "eslint-config-prettier": "10.1.8",
+    "globals": "17.4.0",
+    "jiti": "2.6.1",
+    "prettier": "3.8.1",
+    "tsx": "4.21.0",
+    "typescript": "5.9.3",
+    "typescript-eslint": "8.57.0"
+  }
+}
