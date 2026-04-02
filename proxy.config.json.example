@@ -1,0 +1,14 @@
+{
+  "proxies": [
+    {
+      "port": 21080,
+      "routes": [
+        {
+          "pathPrefix": "/v1",
+          "target": "https://example.com/v1"
+        }
+      ],
+      "logDir": "./llm-api"
+    }
+  ]
+}

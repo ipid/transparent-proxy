@@ -41,3 +41,6 @@ tsconfig.tsbuildinfo
 # npm、yarn 锁文件（由于该项目不使用 npm、yarn，因此禁止提交这些文件）
 package-lock.json
 yarn.lock
+
+# 配置文件
+proxy.config.json
