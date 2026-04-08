@@ -1,4 +1,7 @@
 export function normalizePathPrefix(raw: string): string {
+  if (!raw.startsWith('/')) {
+    throw new Error(`pathPrefix 必须以 / 开头: ${raw}`)
+  }
   if (raw.includes('?') || raw.includes('#')) {
     throw new Error(`pathPrefix 不能包含查询参数或片段标识符: ${raw}`)
   }
@@ -19,7 +22,10 @@ export function normalizeTarget(raw: string, label: string): URL {
     throw new Error(`${label}.target 必须使用 http 或 https 协议`)
   }
   if (url.search !== '' || url.hash !== '') {
-    throw new Error(`${label}.target 不能包含查询参数或片段标识符`)
+    throw new Error(`${label}.target 不能包含 search 部分（?xxx=xxx）或 hash 部分（#xxx）`)
+  }
+  if (url.username || url.password) {
+    throw new Error(`${label}.target 不能包含用户名或密码`)
   }
 
   url.pathname = url.pathname.replace(/\/+$/, '') || '/'

@@ -2,11 +2,11 @@ import * as http from 'node:http'
 import * as https from 'node:https'
 import * as fs from 'node:fs'
 import * as path from 'node:path'
-import type { RawProxyEntry } from './config.ts'
+import type { ProxyEntry } from './config.ts'
 import { buildUpstreamHeaders, buildUpstreamPath, getDisplayUrl, matchRoute } from './utils/proxy.ts'
-import { formatTimestamp } from './utils/time.ts'
+import { generateLogFileName } from './utils/time.ts'
 
-function handleRequest(entry: RawProxyEntry, req: http.IncomingMessage, res: http.ServerResponse): void {
+function handleRequest(entry: ProxyEntry, req: http.IncomingMessage, res: http.ServerResponse): void {
   const reqUrl = req.url ?? '/'
 
   const route = matchRoute(entry.routes, reqUrl)
@@ -25,17 +25,21 @@ function handleRequest(entry: RawProxyEntry, req: http.IncomingMessage, res: htt
   // 创建日志文件
   const logDir = path.resolve(entry.logDir)
   fs.mkdirSync(logDir, { recursive: true })
-  const logFile = path.join(logDir, `${formatTimestamp()}-${Math.random().toString(36).slice(2)}.log`)
+  const logFile = path.join(logDir, `${generateLogFileName()}.log`)
   const log = fs.createWriteStream(logFile)
   log.on('error', (err) => {
     console.error(`[日志写入失败] ${logFile}: ${err.message}`)
   })
 
   // 写入请求元信息
-  const clientIp = req.socket.remoteAddress ?? 'unknown'
-  log.write(`[${new Date().toISOString()}] ${clientIp} → ${displayUrl}\n\n`)
-  log.write('>>>>>>>>>> Request >>>>>>>>>>\n\n')
-  log.write(`${req.method ?? 'GET'} ${reqUrl} HTTP/${req.httpVersion}\n`)
+  const clientIp = req.socket.remoteAddress ?? '<unknownClientIP>'
+  const clientPort = req.socket.remotePort ?? '<unknownClientPort>'
+  log.write(`${clientIp}:${clientPort} → ${displayUrl}
+
+>>>>>>>>>> Request >>>>>>>>>>
+
+${req.method ?? 'GET'} ${reqUrl} HTTP/${req.httpVersion}
+`)
   for (let i = 0; i < req.rawHeaders.length; i += 2) {
     log.write(`${req.rawHeaders[i]}: ${req.rawHeaders[i + 1]}\n`)
   }
@@ -43,12 +47,18 @@ function handleRequest(entry: RawProxyEntry, req: http.IncomingMessage, res: htt
 
   const headers = buildUpstreamHeaders(req.headers, targetBase)
 
-  const requestOptions: http.RequestOptions = {
+  const httpRequestOptions: http.RequestOptions = {
     hostname: targetBase.hostname,
     port: targetBase.port !== '' ? Number(targetBase.port) : undefined,
     path: upstreamPath,
     method: req.method,
     headers,
+  }
+
+  const httpsRequestOptions: https.RequestOptions = {
+    ...httpRequestOptions,
+    allowPartialTrustChain: true, // 不要求上游服务器提供完整的证书链
+    rejectUnauthorized: false, // 不检查上游服务器的证书
   }
 
   function onResponse(upstreamRes: http.IncomingMessage): void {
@@ -69,12 +79,21 @@ function handleRequest(entry: RawProxyEntry, req: http.IncomingMessage, res: htt
       log.end()
       res.end()
     })
+    upstreamRes.on('error', (err) => {
+      log.write('\n<<<<<<<<<< Response Error <<<<<<<<<<\n')
+      log.write(err.message + '\n')
+      log.end()
+      if (!res.headersSent) {
+        res.writeHead(502, { 'Content-Type': 'text/plain; charset=utf-8' })
+      }
+      res.end(`上游响应读取失败: ${err.message}`)
+    })
   }
 
   const upstreamReq =
     targetBase.protocol === 'https:'
-      ? https.request(requestOptions, onResponse)
-      : http.request(requestOptions, onResponse)
+      ? https.request(httpsRequestOptions, onResponse)
+      : http.request(httpRequestOptions, onResponse)
 
   req.on('data', (chunk: Buffer) => {
     log.write(chunk)
@@ -82,6 +101,12 @@ function handleRequest(entry: RawProxyEntry, req: http.IncomingMessage, res: htt
   })
   req.on('end', () => {
     upstreamReq.end()
+  })
+  req.on('error', (err) => {
+    log.write('\n<<<<<<<<<< Client Error <<<<<<<<<<\n')
+    log.write(err.message + '\n')
+    log.end()
+    upstreamReq.destroy()
   })
 
   upstreamReq.on('error', (err) => {
@@ -95,7 +120,7 @@ function handleRequest(entry: RawProxyEntry, req: http.IncomingMessage, res: htt
   })
 }
 
-export function startProxy(entry: RawProxyEntry): http.Server {
+export function startProxy(entry: ProxyEntry): http.Server {
   const server = http.createServer((req, res) => {
     handleRequest(entry, req, res)
   })
@@ -105,10 +130,10 @@ export function startProxy(entry: RawProxyEntry): http.Server {
     process.exit(1)
   })
 
-  server.listen(entry.port, '0.0.0.0', () => {
+  server.listen(entry.port, entry.host, () => {
     for (const route of entry.routes) {
       const prefix = route.pathPrefix || '/'
-      console.log(`[proxy] 0.0.0.0:${entry.port}${prefix} → ${route.target.origin}${route.target.pathname}`)
+      console.log(`[proxy] ${entry.host}:${entry.port}${prefix} → ${route.target.origin}${route.target.pathname}`)
     }
   })
 

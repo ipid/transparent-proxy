@@ -6,14 +6,12 @@ import { validateConfig } from './config.ts'
 import { startProxy } from './proxy.ts'
 
 const program = new Command()
-const argv = process.argv.slice(2)
-const normalizedArgv = argv[0] === '--' ? argv.slice(1) : argv
 
 program
   .name('transparent-proxy')
   .description('透明 HTTP 转发代理服务器，支持流式日志记录')
   .requiredOption('-c, --config <path>', '配置文件路径（JSON 格式）')
-  .parse(['node', 'transparent-proxy', ...normalizedArgv])
+  .parse()
 
 const opts = program.opts<{ config: string }>()
 const configPath = path.resolve(opts.config)

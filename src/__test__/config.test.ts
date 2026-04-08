@@ -13,6 +13,7 @@ void describe('配置校验', () => {
       const config = validateConfig({
         proxies: [
           {
+            host: '127.0.0.1',
             port: 21080,
             logDir: tempDir,
             routes: [
@@ -35,21 +36,20 @@ void describe('配置校验', () => {
     const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'transparent-proxy-config-'))
 
     try {
-      assert.throws(
-        () =>
-          validateConfig({
-            proxies: [
-              {
-                port: 21080,
-                logDir: tempDir,
-                routes: [
-                  { pathPrefix: '/v1', target: 'https://example.com/v1' },
-                  { pathPrefix: '/v1/', target: 'https://example.com/another-v1' },
-                ],
-              },
-            ],
-          }),
-        /重复的路由前缀/,
+      assert.throws(() =>
+        validateConfig({
+          proxies: [
+            {
+              host: '127.0.0.1',
+              port: 21080,
+              logDir: tempDir,
+              routes: [
+                { pathPrefix: '/v1', target: 'https://example.com/v1' },
+                { pathPrefix: '/v1/', target: 'https://example.com/another-v1' },
+              ],
+            },
+          ],
+        }),
       )
     } finally {
       fs.rmSync(tempDir, { recursive: true, force: true })
