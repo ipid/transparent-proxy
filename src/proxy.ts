@@ -76,6 +76,7 @@ ${req.method ?? 'GET'} ${reqUrl} HTTP/${req.httpVersion}
       res.write(chunk)
     })
     upstreamRes.on('end', () => {
+      log.write('\n<<<<<<<<<< Upstream END <<<<<<<<<<\n')
       log.end()
       res.end()
     })
