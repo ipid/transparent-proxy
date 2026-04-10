@@ -44,3 +44,6 @@ yarn.lock
 
 # 配置文件
 proxy.config.json
+
+# 使用 nohup 运行的输出文件
+nohup.out
